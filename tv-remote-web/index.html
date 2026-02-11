@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Android TV Remote</title>
+  <style>
+    :root {
+      --bg: #0b0e13;
+      --panel: #151a22;
+      --text: #e8ecf2;
+      --muted: #9aa6b2;
+      --accent: #00d1b2;
+      --accent-2: #4cc3ff;
+      --danger: #ff5a5f;
+      --border: #232a35;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Space Grotesk", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: radial-gradient(1200px 600px at 20% -10%, #1b2230 0%, transparent 70%),
+                  radial-gradient(900px 500px at 100% 0%, #102030 0%, transparent 65%),
+                  var(--bg);
+      color: var(--text);
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 24px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .title { font-size: 28px; font-weight: 700; letter-spacing: 0.3px; }
+    .card {
+      background: linear-gradient(180deg, #141a24 0%, #0f141c 100%);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      margin-top: 16px;
+    }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    label { font-size: 12px; color: var(--muted); letter-spacing: 0.4px; text-transform: uppercase; }
+    input {
+      width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border);
+      background: #0f141c; color: var(--text);
+    }
+    button {
+      padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border);
+      background: #141b24; color: var(--text); font-size: 16px; font-weight: 600;
+      cursor: pointer; transition: transform 0.05s ease, border 0.2s ease, background 0.2s ease;
+    }
+    button:active { transform: scale(0.98); }
+    button.primary { background: linear-gradient(135deg, #00d1b2 0%, #4cc3ff 100%); color: #041015; border: none; }
+    button.danger { background: #2a1212; border-color: #3a1b1b; color: #ffb3b6; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
+    .wide { grid-column: span 3; }
+    .status { font-size: 13px; color: var(--muted); }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--accent-2); }
+    .pill { display:inline-block; padding: 4px 8px; border-radius: 999px; background:#0f1620; border:1px solid var(--border); font-size:12px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="title">Android TV Remote</div>
+        <div class="status">Works when your local bridge server is running.</div>
+      </div>
+      <span class="pill">Vercel Frontend</span>
+    </header>
+
+    <div class="card">
+      <label for="bridge">Bridge URL</label>
+      <div class="row">
+        <input id="bridge" placeholder="https://your-bridge.example.com" />
+        <button class="primary" id="save">Save</button>
+        <button id="ping">Ping</button>
+      </div>
+      <div class="status" id="pingStatus">Not connected</div>
+    </div>
+
+    <div class="card">
+      <div class="grid">
+        <button onclick="send('KEYCODE_DPAD_UP')">Up</button>
+        <button onclick="send('KEYCODE_DPAD_CENTER')">OK</button>
+        <button onclick="send('KEYCODE_DPAD_DOWN')">Down</button>
+
+        <button onclick="send('KEYCODE_DPAD_LEFT')">Left</button>
+        <button onclick="send('KEYCODE_BACK')">Back</button>
+        <button onclick="send('KEYCODE_DPAD_RIGHT')">Right</button>
+
+        <button onclick="send('KEYCODE_HOME')">Home</button>
+        <button onclick="send('KEYCODE_VOLUME_DOWN')">Vol-</button>
+        <button onclick="send('KEYCODE_VOLUME_UP')">Vol+</button>
+
+        <button class="danger wide" onclick="send('KEYCODE_POWER')">Power</button>
+      </div>
+      <div class="status" style="margin-top:10px;">
+        Tip: if nothing happens, check ADB connection on your PC and the bridge URL.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="align-items:center;">
+        <div class="status">Keys are sent via:</div>
+        <div class="kbd">POST /key/KEYCODE_*</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const bridgeInput = document.getElementById('bridge');
+  const pingStatus = document.getElementById('pingStatus');
+
+  function loadBridge() {
+    const saved = localStorage.getItem('tv_bridge_url');
+    if (saved) bridgeInput.value = saved;
+  }
+
+  function baseUrl() {
+    return bridgeInput.value.replace(/\/$/, '');
+  }
+
+  async function send(code) {
+    const url = baseUrl();
+    if (!url) return alert('Set Bridge URL first');
+    try {
+      await fetch(url + '/key/' + code, { method: 'POST' });
+    } catch (e) {
+      alert('Failed to reach bridge');
+    }
+  }
+
+  async function ping() {
+    const url = baseUrl();
+    if (!url) return alert('Set Bridge URL first');
+    pingStatus.textContent = 'Pinging...';
+    try {
+      const res = await fetch(url + '/ping');
+      const data = await res.json();
+      pingStatus.textContent = 'OK: ' + data.status;
+    } catch (e) {
+      pingStatus.textContent = 'Not connected';
+    }
+  }
+
+  document.getElementById('save').addEventListener('click', () => {
+    localStorage.setItem('tv_bridge_url', bridgeInput.value.trim());
+  });
+  document.getElementById('ping').addEventListener('click', ping);
+
+  loadBridge();
+</script>
+</body>
+</html>
